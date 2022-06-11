@@ -1062,6 +1062,7 @@ public class ReportActivity extends AppCompatActivity {
 
         public void write(byte[] bytes) {
             try {
+                System.out.println("Sending : "+ bytes);
                 this.btOutputStream.write(bytes);
             } catch (IOException e) {
                 Log.e(this.TAG, "Error when writing to btOutputStream");

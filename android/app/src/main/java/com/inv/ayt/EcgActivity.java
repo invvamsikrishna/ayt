@@ -649,13 +649,13 @@ public class EcgActivity extends AppCompatActivity {
                                             EcgActivity.this.dataset.clear();
                                             XYMultipleSeriesRenderer xYMultipleSeriesRenderer2 = EcgActivity.this.mRenderer;
                                             // xYMultipleSeriesRenderer2.setChartTitle(EcgActivity.this.plot_title_NoFilter + EcgActivity.this.plot_title_1 + EcgActivity.this.plot_title_2 + "  (" + EcgActivity.this.text_lead + ")" + EcgActivity.this.text_notch50or60);
-                                            if (HR >= 60 && HR <= 160) {
+                                            // if (HR >= 60 && HR <= 160) {
                                                 EcgActivity.this.dataset.addSeries(EcgActivity.this.xSeries);
                                                 placeText.setText("");
-                                            } else {
-                                                EcgActivity.this.dataset.addSeries(EcgActivity.this.emptyBuffer);
-                                                placeText.setText("Please place fingers on device and hold steadily");
-                                            }
+                                            // } else {
+                                            //     EcgActivity.this.dataset.addSeries(EcgActivity.this.emptyBuffer);
+                                            //     placeText.setText("Please place fingers on device and hold steadily");
+                                            // }
                                             EcgActivity.this.mChart.repaint();
                                             System.out.println("9");
                                         }
@@ -886,6 +886,7 @@ public class EcgActivity extends AppCompatActivity {
 
         public void write(byte[] bytes) {
             try {
+                System.out.println("Sending : "+ bytes);
                 this.btOutputStream.write(bytes);
             } catch (IOException e) {
                 Log.e(this.TAG, "Error when writing to btOutputStream");

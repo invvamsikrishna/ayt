@@ -13,7 +13,7 @@ class _ProductScreenState extends State<ProductScreen> {
   Timer? t;
   double _value = 0, _value1 = 0;
   String _bpValue = "0 / 0";
-  bool _showMeasuring = false;
+  bool _finger = false, _showMeasuring = false;
   double _timer = 0;
   late void Function(void Function()) _state;
 
@@ -28,49 +28,42 @@ class _ProductScreenState extends State<ProductScreen> {
     if (_ctx.isConnected) {
       t = Timer.periodic(Duration(milliseconds: 1000), (Timer timer) {
         _getValue();
-        if (_showMeasuring) {
-          if (!_ctx.finger) {
-            _state(() {
-              _timer = 0;
-            });
-          } else {
-            _state(() {
-              _timer = _ctx.calibrateValue;
-            });
-          }
-        }
-        if ((_value <= 0 || _value1 <= 0) && !_showMeasuring) {
-          _showMeasuring = true;
-          _showMeasuringDialog();
-        } else if (_value > 0 && _value1 > 0) {
-          _timer = 100;
-          if (_showMeasuring) {
-            _showMeasuring = false;
-            Navigator.pop(context);
-            t?.cancel();
-          }
-        }
+        // if ((_value <= 0 || _value1 <= 0) && !_showMeasuring) {
+        //   _showMeasuring = true;
+        //   _showMeasuringDialog();
+        // } else if (_value > 0 && _value1 > 0) {
+        //   if (_showMeasuring) {
+        //     _showMeasuring = false;
+        //     Navigator.pop(context);
+        //   }
+        // }
       });
     }
   }
 
   void _getValue() {
     Counter _ctx = context.read<Counter>();
-    if (_value <= 0) {
-      setState(() {
-        _value = _ctx.hr;
-        _bpValue =
-            _ctx.sys.round().toString() + "/" + _ctx.dia.round().toString();
-        _ctx.saveeHr(_value);
-        _ctx.saveeSys(_ctx.sys);
-        _ctx.saveeDia(_ctx.dia);
-      });
+    if (_ctx.sys <= 0 &&
+        _ctx.dia <= 0 &&
+        _ctx.hr <= 0 &&
+        _ctx.spo2 <= 0 &&
+        _ctx.calibrateValue <= 0) {
+      _finger = false;
+    } else {
+      _finger = true;
     }
-    if (_value1 <= 0) {
-      setState(() {
-        _value1 = _ctx.spo2;
-        _ctx.saveeSpo2(_value1);
-      });
+    setState(() {
+      _timer = _ctx.calibrateValue * 0.6;
+      if (_ctx.sys > 0) _timer += 20;
+      if (_ctx.hr > 0) _timer += 10;
+      if (_ctx.spo2 > 0) _timer += 10;
+      _value = _ctx.hr;
+      _bpValue =
+          _ctx.sys.round().toString() + "/" + _ctx.dia.round().toString();
+      _value1 = _ctx.spo2;
+    });
+    if (!_ctx.isConnected) {
+      t?.cancel();
     }
   }
 
@@ -126,6 +119,44 @@ class _ProductScreenState extends State<ProductScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            if (_timer < 100)
+              Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10),
+                    child: Text(
+                       context.watch<Counter>().calibrationfailed
+                    ? "Calibration failed, Please restart device":
+                      _finger
+                          ? "Calibrating, Please wait..."
+                          : "Please place your finger on the device",
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  SizedBox(height: 15),
+                  if(!context.watch<Counter>().calibrationfailed)
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                        ),
+                      ),
+                      Text(
+                        "${_timer.round()}%",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 15),
+                ],
+              ),
             Container(
               width: double.infinity,
               padding: EdgeInsets.all(30),
@@ -225,9 +256,7 @@ class _ProductScreenState extends State<ProductScreen> {
                     Padding(
                       padding: EdgeInsets.symmetric(horizontal: 10),
                       child: Text(
-                        context.watch<Counter>().finger
-                            ? "Measuring, Please wait..."
-                            : "Place your finger on the device",
+                        "Place your finger on the device",
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -243,7 +272,7 @@ class _ProductScreenState extends State<ProductScreen> {
                           ),
                         ),
                         Text(
-                          "${_timer.round()}%",
+                          "0%",
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,

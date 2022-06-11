@@ -545,24 +545,32 @@ public class ViewLeadActivity extends AppCompatActivity {
     }
 
     public void generateHR() {
-        double total = 0;
-        for (int i = 0; i < hrValues.size(); i++)
-            total = total + hrValues.get(i);
         int avg = 0;
         String sympotoms = " - ";
-        if (total > 0) {
-            avg = (int) total / hrValues.size();
-            hrView.setText(avg + " bpm");
-            if (avg > 60) {
-                sympotoms = "Sinus Rhythm";
-                if (qt > 0) {
-                    qtc = qt + (int) ((avg - 60) * 1.75);
-                    qtcView.setText((int) qtc + " ms");
-                }
+        for (int i = 0; i < vitalValues.size(); i++) {
+            if (vitalValues.get(i) <= 0) continue;
+            if (i == 0) {
+                avg = vitalValues.get(i).intValue();
+                hrView.setText(avg + " bpm");
+            } else if (i == 2) {
+                int value = vitalValues.get(i).intValue();
+                int value1 = vitalValues.get(i - 1).intValue();
+                bpView.setText(value1 + " / " + value);
+            } else if (i == 3) {
+                int value = vitalValues.get(i).intValue();
+                spo2View.setText(value + "");
+            } else if (i == 4) {
+                tempView.setText(vitalValues.get(i).toString());
             }
         }
-
-        if(avg > 0){
+        if (avg > 60) {
+            sympotoms = "Sinus Rhythm";
+            if (qt > 0) {
+                qtc = qt + (int) ((avg - 60) * 1.75);
+                qtcView.setText((int) qtc + " ms");
+            }
+        }
+        if (avg > 0) {
             if (age == "New Born") {
                 if (avg < 100) sympotoms = "Bradycardia";
                 if (avg > 160) sympotoms = "tachycardia";
@@ -595,25 +603,6 @@ public class ViewLeadActivity extends AppCompatActivity {
             }
         }
         interpretation.setText(sympotoms);
-
-        for (int i = 0; i < vitalValues.size(); i++) {
-            if (vitalValues.get(i) <= 0) continue;
-            if (i == 0) {
-                if(total <= 0){
-                    int value = vitalValues.get(i).intValue();
-                    spo2View.setText(value + " bpm");
-                }
-            } else if (i == 2) {
-                int value = vitalValues.get(i).intValue();
-                int value1 = vitalValues.get(i - 1).intValue();
-                bpView.setText(value1 + " / " + value);
-            } else if (i == 3) {
-                int value = vitalValues.get(i).intValue();
-                spo2View.setText(value + "");
-            } else if (i == 4) {
-                tempView.setText(vitalValues.get(i).toString());
-            }
-        }
     }
 
     private ArrayList<Double> readFromFile(Uri file) {

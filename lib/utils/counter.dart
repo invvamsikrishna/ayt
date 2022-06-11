@@ -10,38 +10,44 @@ class Counter with ChangeNotifier {
   String _status = "Device Offline";
   bool _calibration = false;
   bool _calibrationfailed = false;
-  bool _finger = false;
-  double _calibrateValue = 0;
-  double _sys = 0;
-  double _dia = 0;
-  double _hr = 0;
-  double _spo2 = 0;
-  double _temp = 0;
 
+  double _calibrateValue = 0, _batteryLevel = 0;
+  double _sys = 0, _dia = 0, _hr = 0, _spo2 = 0, _temp = 0;
   double _saveHr = 0, _saveSys = 0, _saveDia = 0, _saveSpo2 = 0, _saveTemp = 0;
 
-  List<double> _hrList = [];
-  List<double> _spo2List = [];
-  bool _spo2Flag = true;
+  // List<double> _hrList = [];
+  // List<double> _spo2List = [];
+  int _bpList = 0;
+  int _hrList = 0;
+  int _spo2List = 0;
+  int _tempList = 0;
   bool _bpFlag = true;
+  bool _hrFlag = true;
+  bool _spo2Flag = true;
+  bool _tempFlag = true;
 
   bool get isConnected => _isConnected;
   String get status => _status;
+  bool get calibration => _calibration;
+  bool get calibrationfailed => _calibrationfailed;
+
+  double get calibrateValue => _calibrateValue;
+  double get batteryValue => _batteryLevel;
   double get sys => _sys;
   double get dia => _dia;
   double get hr => _hr;
   double get spo2 => _spo2;
   double get temp => _temp;
-  bool get calibration => _calibration;
-  bool get calibrationfailed => _calibrationfailed;
-  bool get finger => _finger;
-  double get calibrateValue => _calibrateValue;
-
   double get gettHr => _saveHr;
   double get gettSys => _saveSys;
   double get gettDia => _saveDia;
   double get gettSpo2 => _saveSpo2;
   double get gettTemp => _saveTemp;
+
+  bool get bpFlag => _bpFlag;
+  bool get hrFlag => _hrFlag;
+  bool get spo2Flag => _spo2Flag;
+  bool get tempFlag => _tempFlag;
 
   void saveeHr(value) {
     _saveHr = value;
@@ -73,11 +79,15 @@ class Counter with ChangeNotifier {
     _spo2 = 0;
     _sys = 0;
     _dia = 0;
-    _calibrateValue = 0;
+    _temp = 0;
+    // _hrList.clear();
+    // _spo2List.clear();
+    // _spo2List.clear();
     _bpFlag = true;
+    _hrFlag = true;
     _spo2Flag = true;
-    _hrList.clear();
-    _spo2List.clear();
+    _tempFlag = true;
+    notifyListeners();
   }
 
   void clearSavedValues() {
@@ -122,54 +132,64 @@ class Counter with ChangeNotifier {
         _calibration = false;
         _calibrationfailed = true;
         _calibrateValue = 0;
-        if (dataa.trim() == "failed")
-          _status = "Calibration failed, Please restart device";
-        if (dataa.trim() == "check-wiring")
-          _status = "Please check device connections";
-        if (dataa.trim() == "check-connections")
-          _status = "Please check device connections";
+        _status = "Error in device connections, Please restart the device";
+        _batteryLevel = 0;
       }
 
-      // if (dataa.contains("p=")) {
-      //   _calibration = false;
-      //   _calibrationfailed = false;
-      //   _calibrateValue = double.tryParse(dataa.split("=").last) ?? 0;
-      //   _status = "Calibration in progress";
-      // }
+      if (dataa.contains("p=")) {
+        _calibration = false;
+        _calibrationfailed = false;
+        _calibrateValue = double.tryParse(dataa.split("=").last) ?? 0;
+        _status = "Calibration in progress";
+        _batteryLevel = 0;
+      }
 
-      if (dataa.trim() == "on") {
+      if (dataa.contains("on")) {
         _isConnected = true;
         _calibrationfailed = false;
-        _finger = false;
+        _calibrateValue = 100;
         _status = "Active";
+        List<String> _split = dataa.split("on");
+        double? value = double.tryParse(_split[1]);
+        if (value != null) {
+          _batteryLevel = (value >= 100) ? 100 : value;
+        }
         clearValues();
       }
 
-      if (dataa.contains(":")) {
-        _calibration = true;
-        _finger = true;
-        List<String> _split = dataa.split(":");
-        _sys = double.tryParse(_split[0]) ?? 0;
-        _dia = double.tryParse(_split[1]) ?? 0;
-      }
+      // if (dataa.trim() == "nofinger") {
+      //   _finger = false;
+      // }
+
+      // if (dataa.contains(":")) {
+      //   _calibration = true;
+      //   _finger = true;
+      //   List<String> _split = dataa.split(":");
+      //   _sys = double.tryParse(_split[0]) ?? 0;
+      //   _dia = double.tryParse(_split[1]) ?? 0;
+      // }
       if (dataa.contains("!")) {
         _calibration = true;
         List<String> _split = dataa.split("!");
-        double value = double.tryParse(_split[0]) ?? 0;
-        getHR(value);
-      }
-      if (dataa.contains("?")) {
-        _calibration = true;
-        List<String> _split = dataa.split("?");
-        double value = double.tryParse(_split[0]) ?? 0;
-        getSpo2(value);
+        if (_split.length >= 2) {
+          double? value = double.tryParse(_split[0]);
+          double? value1 = double.tryParse(_split[1]);
+          if (value != null && value1 != null) getBp(value, value1);
+        }
+        if (_split.length >= 3) {
+          double? value = double.tryParse(_split[2]);
+          if (value != null) getHR(value);
+        }
+        if (_split.length >= 4) {
+          double? value = double.tryParse(_split[3]);
+          if (value != null) getSpo2(value);
+        }
       }
       if (dataa.contains(";")) {
         _calibration = true;
-        _finger = true;
         List<String> _split = dataa.split(";");
-        _temp = double.tryParse(_split[0]) ?? 0;
-        // if (_temp != 0) _temp = _temp + 1;
+        double? value = double.tryParse(_split[0]) ?? 0;
+        if (value != 0) getTemp(value);
       }
       notifyListeners();
     }).onDone(() {
@@ -194,72 +214,113 @@ class Counter with ChangeNotifier {
     notifyListeners();
   }
 
-  void getHR(double value) {
-    if (value > 0) {
-      _finger = true;
-      if (value < 60 || !_bpFlag) {
-        return;
-      }
-      _hrList.add(value);
-      _calibrateValue = (_hrList.length * 10) + 50;
-      if (_hrList.length >= 5) {
-        _hr = 8 +
-            (_hrList.reduce((value, element) => element + value) /
-                _hrList.length);
-        _sys = _hr + 30 + Random().nextInt(20);
-        _dia = (_hr > 80)
-            ? _hr - Random().nextInt(10)
-            : _hr + Random().nextInt(10);
-        print(_hrList);
-        _bpFlag = false;
-      } else {
-        _bpFlag = true;
-        _hr = 0;
-        _sys = 0;
-        _dia = 0;
-      }
-    } else {
-      _hr = 0;
-      _sys = 0;
-      _dia = 0;
-      _bpFlag = true;
-      _hrList.clear();
+  void getBp(double value, double value1) {
+    _sys = value;
+    _dia = value1;
+    if (_sys > 0 && _dia > 0) {
+      _saveSys = _sys;
+      _saveDia = _dia;
     }
+    // if (value > _sys) {
+    // _bpList = 0;
+    // } else {
+    //   _bpList++;
+    // }
+    // if (_bpList > 1) {
+    //   _saveSys = _sys;
+    //   _saveDia = _dia;
+    //   _bpList = 0;
+    //   _bpFlag = false;
+    // }
+  }
+
+  void getHR(double value) {
+    _hr = value;
+    if (_hr > 0) {
+      _saveHr = _hr;
+    }
+    // if (value > _hr) {
+    //   _hrList = 0;
+    // } else {
+    //   _hrList++;
+    // }
+    // if (_hrList > 1) {
+    // _saveHr = _hr;
+    // _hrList = 0;
+    // _hrFlag = false;
+    // }
+    // if (value < 60 || !_bpFlag) {
+    //   return;
+    // }
+    // _hrList.add(value / 2);
+    // _calibrateValue = (_hrList.length + _spo2List.length) * 5;
+    // _hrList.sort();
+    // _hr =
+    //     (_hrList.reduce((value, element) => element + value) / _hrList.length);
+    // _sys = (_hr > 80)
+    //     ? (_hr + 20 + Random().nextInt(20))
+    //     : (_hr + 40 + Random().nextInt(20));
+    // _dia = (_hr > 80)
+    //     ? (_hr + 5 - Random().nextInt(10))
+    //     : (_hr - 5 + Random().nextInt(10));
+    // if (_hrList.length >= 10) {
+    //   print(_hrList);
+    //   _saveHr = _hr;
+    //   _saveSys = _sys;
+    //   _saveDia = _dia;
+    //   _bpFlag = false;
+    // }
   }
 
   void getSpo2(double value) {
-    if (value > 0) {
-      _finger = true;
-      if (value < 85 || !_spo2Flag) {
-        return;
-      }
-      // if (value >= 100) {
-      //   value = 100;
-      // }
-      _spo2List.add(value);
-      _calibrateValue = _spo2List.length * 10;
-      if (_spo2List.length >= 5) {
-        List<double> _lastValues =
-            _spo2List.getRange(_spo2List.length - 5, _spo2List.length).toList();
-        print(_spo2List);
-        double _avrValue =
-            (_lastValues.reduce((value, element) => element + value)) / 5;
-        print(_avrValue);
-        if (_avrValue < 95) {
-          _spo2 = 98;
-        } else {
-          _spo2 = 99;
-        }
-        sendData("2");
-        _spo2Flag = false;
-      } else {
-        _spo2 = 0;
-      }
+    if (value >= 99) {
+      _spo2 = 99;
+    } else if (value >= 94 && value <= 98) {
+      _spo2 = 98;
     } else {
-      _spo2 = 0;
-      _spo2Flag = true;
-      _finger = false;
-      _spo2List.clear();
+      _spo2 = value;
+    }
+    if (_spo2 > 0) {
+      _saveSpo2 = _spo2;
+    }
+    // if (value > _spo2) {
+    // _spo2List = 0;
+    // } else {
+    //   _spo2List++;
+    // }
+    // if (_spo2List > 1) {
+    // _saveSpo2 = _spo2;
+    // _spo2List = 0;
+    // _spo2Flag = false;
+    // }
+    // if (value < 90 || !_spo2Flag) {
+    //   return;
+    // }
+    // _spo2List.add(value);
+    // _calibrateValue = (_hrList.length + _spo2List.length) * 5;
+    // _spo2List.sort();
+    // _spo2 = _spo2List[_spo2List.length - 1];
+    // if (_spo2List.length >= 10) {
+    //   _saveSpo2 = _spo2;
+    //   print(_spo2List);
+    //   _spo2Flag = false;
+    // }
+  }
+
+  void getTemp(value) {
+    if (!_tempFlag) {
+      return;
+    }
+    double value1 = value + 5;
+    if (value1 > _temp) {
+      _temp = value1;
+      _tempList = 0;
+    } else {
+      _tempList++;
+    }
+    if (_tempList > 15) {
+      _tempList = 0;
+      _tempFlag = false;
     }
   }
 }

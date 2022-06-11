@@ -14,15 +14,11 @@ class _TempScreenState extends State<TempScreen> {
   Timer? t;
   double _value = 0;
   String _minimum = "-", _maximum = "-";
-  bool _showMeasuring = false;
-  double _timer = 0, _duration = 0;
   late void Function(void Function()) _state;
 
   @override
   void initState() {
     super.initState();
-    _duration = 15;
-    _timer = _duration;
     _getData();
   }
 
@@ -31,33 +27,6 @@ class _TempScreenState extends State<TempScreen> {
     if (_ctx.isConnected) {
       t = Timer.periodic(Duration(milliseconds: 1000), (Timer timer) {
         _getValue();
-        if (_showMeasuring && _timer != 0) {
-          if (_ctx.finger) {
-            _state(() {
-              _timer -= 1;
-            });
-          } else {
-            _state(() {
-              _timer = _duration;
-            });
-          }
-        }
-        if (_timer == 0) {
-          _state(() {
-            _timer = _duration;
-          });
-        }
-        if (_value <= 0 && !_showMeasuring) {
-          _showMeasuring = true;
-          _showMeasuringDialog();
-        } else if (_value > 0) {
-          _timer = _duration;
-          if (_showMeasuring) {
-            _showMeasuring = false;
-            Navigator.pop(context);
-            t?.cancel();
-          }
-        }
       });
     }
   }
@@ -67,6 +36,10 @@ class _TempScreenState extends State<TempScreen> {
     setState(() {
       _value = _ctx.temp;
     });
+    if (!_ctx.tempFlag) {
+      _ctx.saveeTemp(_value);
+      t?.cancel();
+    }
   }
 
   @override
@@ -102,6 +75,19 @@ class _TempScreenState extends State<TempScreen> {
                   color: Colors.white, borderRadius: BorderRadius.circular(50)),
               child: Column(
                 children: [
+                  if (context.watch<Counter>().tempFlag)
+                    Column(
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(
+                            "Measuring, Please wait...",
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        SizedBox(height: 15),
+                      ],
+                    ),
                   Image.asset(
                     "assets/icons/temp.png",
                     height: 100,
@@ -174,81 +160,12 @@ class _TempScreenState extends State<TempScreen> {
                       )
                     ],
                   ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      primary: hButtonColor,
-                    ),
-                    onPressed: () {
-                      context.read<Counter>().saveeTemp(_value);
-                      ShowSnackBarwithOk(context, "Record Saved");
-                    },
-                    child: Text("Save",style: TextStyle(color: hPrimary),),
-                  )
                 ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-
-  _showMeasuringDialog() {
-    return showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return StatefulBuilder(
-          builder:
-              (BuildContext context, void Function(void Function()) setStatee) {
-            _state = setStatee;
-            return WillPopScope(
-              onWillPop: () async => false,
-              child: AlertDialog(
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 10),
-                      child: Text(
-                        context.watch<Counter>().finger
-                            ? "Measuring, Please wait..."
-                            : "Place your finger on the device",
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    SizedBox(height: 15),
-                    Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        ),
-                        Text(
-                          "${_timer.round()}",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 15),
-                    OutlinedButton(
-                      onPressed: () => Navigator.of(context)..pop()..pop(),
-                      child: Text("Cancel"),
-                    )
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }

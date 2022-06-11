@@ -6,14 +6,12 @@ import 'package:ayt/screens/temp_screen.dart';
 import 'package:ayt/utils/bluetooth_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import '../constants.dart';
 import '../utils/counter.dart';
 import 'bluetooth_devices.dart';
-import 'calibrate_screen.dart';
 
 class Item {
   String title;
@@ -44,19 +42,19 @@ class _HomeScreenState extends State<HomeScreen> {
     Item item1 = new Item(
       title: "Heart Rate",
       icon: "assets/icons/ht.png",
-      value: "3",
+      value: "1",
       showValue: "${ctx.gettHr.toInt()}",
     );
     Item item2 = new Item(
       title: "Spo2",
       icon: "assets/icons/spo2.png",
-      value: "3",
+      value: "1",
       showValue: "${ctx.gettSpo2.toInt()}",
     );
     Item item3 = new Item(
       title: "Blood Pressure",
       icon: "assets/icons/bp.png",
-      value: "3",
+      value: "1",
       showValue: "${ctx.gettSys.toInt()} / ${ctx.gettDia.toInt()}",
     );
     Item item4 = new Item(
@@ -83,33 +81,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void onButtonPress(Item data) async {
     Counter ctx = context.read<Counter>();
-    if (data.value == "5") {
-      await _saveFile();
-      ctx.sendData("0");
-      ctx.disconnectDevice();
-      _startActivity();
-    } else {
-      if (ctx.isConnected) {
-        ctx.sendData(data.value);
-        if (data.value == "4") {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => TempScreen()),
-          );
-        } else {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => ProductScreen()),
-          );
-        }
+    if (ctx.isConnected) {
+      if (data.value == "5") {
+        await _saveFile();
         ctx.sendData("0");
-        ctx.clearValues();
-      } else {
-        ShowSnackBarwithOk(
+        ctx.disconnectDevice();
+        _startActivity();
+      } else if (data.value == "4") {
+        ctx.sendData(data.value);
+        await Navigator.push(
           context,
-          "Device offline, Please connected to device...",
+          MaterialPageRoute(builder: (context) => TempScreen()),
+        );
+      } else {
+        ctx.sendData(data.value);
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => ProductScreen()),
         );
       }
+      ctx.sendData("0");
+      ctx.clearValues();
+    } else {
+      ShowSnackBarwithOk(
+        context,
+        "Device offline, Please connected to device...",
+      );
     }
   }
 
@@ -132,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
         File file = File('${fileDir.path}/vitals.txt');
         await file.writeAsString(
             "${_ctx.gettHr.toInt()}\n${_ctx.gettSys.toInt()}\n${_ctx.gettDia.toInt()}\n${_ctx.gettSpo2.toInt()}\n${_ctx.gettTemp.toStringAsFixed(1)}\n");
-        _ctx.clearSavedValues();
+        // _ctx.clearSavedValues();
       }
     }
   }
@@ -206,16 +203,33 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
             child: Column(
               children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Dashboard",
-                    style: TextStyle(
-                      fontSize: 20,
-                      color: hTextColor,
-                      fontWeight: FontWeight.bold,
+                Row(
+                  children: [
+                    Text(
+                      "Dashboard",
+                      style: TextStyle(
+                        fontSize: 20,
+                        color: hTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                    Spacer(),
+                    Text(
+                      context.read<Counter>().isConnected
+                          ? "${context.watch<Counter>().batteryValue.toInt()}%"
+                          : "-",
+                      style: TextStyle(
+                        color: hTextColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Icon(
+                      Icons.battery_full,
+                      color: context.watch<Counter>().batteryValue > 60
+                          ? Colors.green
+                          : Colors.red,
+                    ),
+                  ],
                 ),
                 SizedBox(height: 15),
                 Container(
@@ -234,7 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontSize: 24,
                         ),
                       ),
-                      SizedBox(height: 15),
+                      SizedBox(height: 12),
                       Text(
                         "Let's check your health with us, care with your from now to get more live better",
                         textAlign: TextAlign.center,
@@ -243,16 +257,19 @@ class _HomeScreenState extends State<HomeScreen> {
                           fontSize: 14,
                         ),
                       ),
-                      SizedBox(height: 15),
-                      Text(
-                        "Device status: ${context.watch<Counter>().status}",
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          fontSize: 16,
+                      SizedBox(height: 16),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          "Device status: ${context.watch<Counter>().status}",
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
-                      SizedBox(height: 10),
+                      SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
@@ -309,57 +326,93 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 SizedBox(height: 10),
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: NeverScrollableScrollPhysics(),
-                  childAspectRatio: 1.1,
-                  crossAxisCount: 2,
-                  padding: EdgeInsets.symmetric(vertical: 16),
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  children: _myItems
-                      .map(
-                        (data) => GestureDetector(
-                          onTap: () => onButtonPress(data),
-                          child: Container(
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(10),
+                (context.watch<Counter>().isConnected &&
+                        !context.watch<Counter>().calibration)
+                    ? Container(
+                        height: 300,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: Text(
+                                "Please place your finger on the device and Press the start button",
+                                textAlign: TextAlign.center,
+                              ),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: <Widget>[
-                                Image.asset(
-                                  data.icon,
-                                  height: 40,
-                                ),
-                                Text(
-                                  data.title,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: hTextColor,
-                                  ),
-                                ),
-                                if (data.value != "5")
-                                  Text(
-                                    data.showValue,
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: hTextColor,
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
+                            SizedBox(height: 15),
+                            OutlinedButton(
+                              onPressed: () async {
+                                context.read<Counter>().sendData("1");
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => ProductScreen()),
+                                );
+                                context.read<Counter>().sendData("0");
+                                context.read<Counter>().clearValues();
+                              },
+                              child: Text(
+                                "Start",
+                                style: TextStyle(fontSize: 18),
+                              ),
+                            )
+                          ],
                         ),
                       )
-                      .toList(),
-                ),
+                    : GridView.count(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        childAspectRatio: 1.1,
+                        crossAxisCount: 2,
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        children: _myItems
+                            .map(
+                              (data) => GestureDetector(
+                                onTap: () => onButtonPress(data),
+                                child: Container(
+                                  padding: EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: <Widget>[
+                                      Image.asset(
+                                        data.icon,
+                                        height: 40,
+                                      ),
+                                      Text(
+                                        data.title,
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: hTextColor,
+                                        ),
+                                      ),
+                                      if (data.value != "5")
+                                        Text(
+                                          data.showValue,
+                                          style: TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: hTextColor,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
               ],
             ),
           ),
